@@ -18,6 +18,10 @@ set_env () {
   local ENV_NAME=$1
   # shellcheck disable=SC1091
   source ./scripts/01_env.sh "${ENV_NAME}"
+  
+  export PROJECT_NUMBER="$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")"
+  # WIF provider resource name (to store in GitHub secrets)
+  export REPO_WIF_PROVIDER="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${REPO_POOL_ID}/providers/${REPO_PROVIDER_ID}"
 
   echo "=== Configure GitHub env=${ENV_NAME} ==="
 

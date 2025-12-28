@@ -50,7 +50,6 @@ case "${ENV_NAME}" in
 esac
 
 # === Derived variables ===
-export PROJECT_NUMBER="$(gcloud projects describe "${PROJECT_ID}" --format="value(projectNumber)")"
 
 export SA_ADMIN="sa-admin-${PROJECT_ID}"
 export SA_ADMIN_EMAIL="${SA_ADMIN}@${PROJECT_ID}.iam.gserviceaccount.com"
@@ -64,5 +63,3 @@ export SA_RUNNER_EMAIL="${SA_RUNNER}@${PROJECT_ID}.iam.gserviceaccount.com"
 export DBT_ARTEFACT_REGISTRY="ar-dbt-${PROJECT_ID}"
 export DBT_JOB_CLOUDRUN="job-dbt-${PROJECT_ID}"
 
-# WIF provider resource name (to store in GitHub secrets)
-export REPO_WIF_PROVIDER="projects/${PROJECT_NUMBER}/locations/global/workloadIdentityPools/${REPO_POOL_ID}/providers/${REPO_PROVIDER_ID}"

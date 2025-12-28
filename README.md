@@ -24,3 +24,31 @@
     ├── 08_dbt_create_profiles.sh
     └── 09_dbt_create_docker_assets.sh
 ```
+
+## Mise en place des pre-requis
+
+### Création du repo (si il n'hesite pas)
+```
+export LOGIN_GITHUB=jcbrun
+export REPO_GITHUB=dpf-core
+gh auth login
+# Création du repo github
+# se positionner dans le répertoire du repo
+cd ${REPO_GITHUB}
+gh repo create ${REPO_GITHUB} \                               
+  --public
+
+# Commit et push
+git init
+git branch -M main 
+git remote add origin git@github.com:${LOGIN_GITHUB}/${REPO_GITHUB}.git
+# creer .gitignore
+cat > ".gitignore" <<EOF
+.DS_Store
+venv/
+logs/
+EOF
+git add .github *
+git commit -m "Version Initiale"
+git push origin main
+```
