@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+
+### Nom du script : scripts/05_configure_github_envs.sh (optionnel, mais recommandé)
+### Ce script pousse automatiquement les secrets et variables dans GitHub, par environment.
+### Pré-requis :
+###     - gh auth login
+###     - environnements GitHub déjà créés : dev, rec, prod
+###     - Avoir accès admin au repo
+
+set -euo pipefail
+
+REPO="${1:-jcbrun/dpf-client}"
+
+echo "Configuring GitHub environments on repo ${REPO}"
+echo "Prereq: environments dev/rec/prod must exist in GitHub UI"
+
+set_env () {
+  local ENV_NAME=$1
+  # shellcheck disable=SC1091
+  source ./scripts/01_env.sh "${ENV_NAME}"
+
+  echo "=== Configure GitHub env=${ENV_NAME} ==="
+
+  # Secrets (sensitive)
+  gh secret set WIF_PROVIDER --repo "${REPO}" --env "${ENV_NAME}" --body "${REPO_WIF_PROVIDER}"
+  gh secret set GCP_SA_EMAIL  --repo "${REPO}" --env "${ENV_NAME}" --body "${SA_BUILDER_EMAIL}"
+
+  # Variables (non sensitive)
+  gh variable set GCP_PROJECT_ID  --repo "${REPO}" --env "${ENV_NAME}" --body "${PROJECT_ID}"
+  gh variable set GCP_REGION      --repo "${REPO}" --env "${ENV_NAME}" --body "${REGION}"
+  gh variable set GAR_REPO        --repo "${REPO}" --env "${ENV_NAME}" --body "${DBT_ARTEFACT_REGISTRY}"
+  gh variable set CLOUD_RUN_JOB   --repo "${REPO}" --env "${ENV_NAME}" --body "${DBT_JOB_CLOUDRUN}"
+  gh variable set SA_RUNNER_EMAIL --repo "${REPO}" --env "${ENV_NAME}" --body "${SA_RUNNER_EMAIL}"
+  gh variable set DATASET         --repo "${REPO}" --env "${ENV_NAME}" --body "${DATASET}"
+  gh variable set BQ_LOCATION     --repo "${REPO}" --env "${ENV_NAME}" --body "${BQ_LOCATION}"
+  gh variable set DBT_CMD         --repo "${REPO}" --env "${ENV_NAME}" --body "${DBT_CMD_DEFAULT}"
+
+  echo "Done env=${ENV_NAME}"
+}
+
+set_env dev
+set_env rec
+set_env prod
+
+echo "All GitHub environments configured."

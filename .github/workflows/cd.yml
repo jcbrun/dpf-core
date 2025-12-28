@@ -1,0 +1,130 @@
+name: CD - Cloud Run Job (dev/rec/prod)
+
+on:
+  push:
+    branches:
+      - develop
+      - "release/**"
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+jobs:
+  deploy-dev:
+    if: github.ref == 'refs/heads/develop'
+    runs-on: ubuntu-latest
+    environment: dev
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Auth to GCP (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure docker auth
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build & Push image
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPO }}/dbt:${GITHUB_SHA}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+
+      - name: Update & Execute Job
+        run: |
+          gcloud run jobs update "${{ vars.CLOUD_RUN_JOB }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --image "$IMAGE" \
+            --service-account "${{ vars.SA_RUNNER_EMAIL }}" \
+            --set-env-vars "PROJECT_ID=${{ vars.GCP_PROJECT_ID }},DATASET=${{ vars.DATASET }},BQ_LOCATION=${{ vars.BQ_LOCATION }},DBT_CMD=${{ vars.DBT_CMD }}" \
+            --task-timeout 3600 --max-retries 1
+
+          gcloud run jobs execute "${{ vars.CLOUD_RUN_JOB }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --wait
+
+  deploy-rec:
+    if: startsWith(github.ref, 'refs/heads/release/')
+    runs-on: ubuntu-latest
+    environment: rec
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Auth to GCP (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Configure docker auth
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+      - name: Build & Push image
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPO }}/dbt:${GITHUB_SHA}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+      - name: Update & Execute Job
+        run: |
+          gcloud run jobs update "${{ vars.CLOUD_RUN_JOB }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --image "$IMAGE" \
+            --service-account "${{ vars.SA_RUNNER_EMAIL }}" \
+            --set-env-vars "PROJECT_ID=${{ vars.GCP_PROJECT_ID }},DATASET=${{ vars.DATASET }},BQ_LOCATION=${{ vars.BQ_LOCATION }},DBT_CMD=${{ vars.DBT_CMD }}" \
+            --task-timeout 3600 --max-retries 1
+
+          gcloud run jobs execute "${{ vars.CLOUD_RUN_JOB }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --wait
+
+  deploy-prod:
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Auth to GCP (OIDC)
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ secrets.GCP_SA_EMAIL }}
+      - uses: google-github-actions/setup-gcloud@v2
+      - name: Configure docker auth
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+      - name: Build & Push image
+        run: |
+          IMAGE="${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.GAR_REPO }}/dbt:${GITHUB_SHA}"
+          docker build -t "$IMAGE" .
+          docker push "$IMAGE"
+          echo "IMAGE=$IMAGE" >> $GITHUB_ENV
+      - name: Update & Execute Job
+        run: |
+          gcloud run jobs update "${{ vars.CLOUD_RUN_JOB }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --image "$IMAGE" \
+            --service-account "${{ vars.SA_RUNNER_EMAIL }}" \
+            --set-env-vars "PROJECT_ID=${{ vars.GCP_PROJECT_ID }},DATASET=${{ vars.DATASET }},BQ_LOCATION=${{ vars.BQ_LOCATION }},DBT_CMD=${{ vars.DBT_CMD }}" \
+            --task-timeout 3600 --max-retries 1
+
+          gcloud run jobs execute "${{ vars.CLOUD_RUN_JOB }}" \
+            --project "${{ vars.GCP_PROJECT_ID }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --wait
